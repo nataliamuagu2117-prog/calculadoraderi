@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora de Derivadas - CECyTEM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#f4e9f7;
+    padding:20px;
+}
+.container{
+    max-width:800px;
+    margin:auto;
+    background:white;
+    padding:30px;
+    border-radius:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,.2);
+}
+.tabs{
+    display:flex;
+    margin-bottom:20px;
+}
+.tabs button{
+    flex:1;
+    padding:15px;
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+    background:#e6c9f2;
+}
+.tabs button.active{
+    background:#c084fc;
+    color:white;
+}
+.section{ display:none; }
+.section.active{ display:block; }
+
+input, textarea, select{
+    width:100%;
+    padding:10px;
+    margin-top:8px;
+    margin-bottom:5px;
+}
+.aviso{
+    font-size:13px;
+    color:#6b21a8;
+    margin-bottom:15px;
+}
+button{
+    padding:10px 15px;
+    background:#c084fc;
+    color:white;
+    border:none;
+    cursor:pointer;
+    margin-top:5px;
+}
+button.rojo{
+    background:#e11d48;
+}
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+table, th, td{
+    border:1px solid #aaa;
+}
+th, td{
+    padding:8px;
+    text-align:center;
+}
+.actividad{
+    background:#f3e8ff;
+    padding:10px;
+    border-radius:10px;
+    margin-bottom:15px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h2 style="text-align:center">Proyecto Calculadora de Derivadas</h2>
+
+<div class="tabs">
+    <button class="active" onclick="mostrar('alumnos')">Alumnos</button>
+    <button onclick="mostrar('maestro')">Maestro</button>
+</div>
+
+<!-- ================= ALUMNOS ================= -->
+<div id="alumnos" class="section active">
+
+<div id="actividadAlumno" class="actividad">No hay actividad asignada.</div>
+
+<label>Nombre del alumno</label>
+<input type="text" id="nombreAlumno">
+
+<label>Función a derivar</label>
+<input type="text" id="funcion">
+<div class="aviso">• Máximo 5 términos</div>
+
+<label>Variable</label>
+<select id="variable">
+<option value="x">x</option>
+</select>
+
+<button onclick="calcularDerivada()">Calcular derivada</button>
+
+<div id="resultado" style="margin-top:15px;"></div>
+
+<h4>Responder actividad</h4>
+<textarea id="respuestaAlumno"></textarea>
+<button onclick="enviarRespuesta()">Enviar respuesta</button>
+
+</div>
+
+<!-- ================= MAESTRO ================= -->
+<div id="maestro" class="section">
+
+<h3>Acceso Maestro</h3>
+<input type="password" id="codigoMaestro">
+<button onclick="validarCodigo()">Entrar</button>
+
+<div id="panelMaestro" style="display:none">
+
+<h4>Crear / Modificar actividad</h4>
+<textarea id="actividad"></textarea>
+
+<button onclick="guardarActividad()">Guardar actividad</button>
+<button class="rojo" onclick="borrarActividad()">Borrar actividad</button>
+
+<h4>Resultados</h4>
+<table>
+<thead>
+<tr>
+<th>Alumno</th>
+<th>Respuesta</th>
+</tr>
+</thead>
+<tbody id="tablaResultados"></tbody>
+</table>
+
+<button class="rojo" onclick="reiniciarRespuestas()">Reiniciar respuestas</button>
+
+</div>
+</div>
+
+</div>
+
+<script>
+function mostrar(seccion){
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(seccion).classList.add('active');
+    document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+    event.target.classList.add('active');
+    if(seccion==="alumnos") mostrarActividadAlumno();
+}
+
+/* ===== DERIVADA (CORREGIDA SIN ROMPER NADA) ===== */
+function calcularDerivada(){
+    const f = funcion.value.trim();
+    const res = resultado;
+
+    if(!f){
+        res.innerHTML="Ingresa una función";
+        return;
+    }
+
+    const terminos = f.replace(/-/g,"+-").split("+").filter(t=>t!=="");
+    if(terminos.length > 5){
+        res.innerHTML = "⚠️ Solo se permiten máximo 5 términos.";
+        return;
+    }
+
+    try{
+        const derivada = math.derivative(f, "x").toString();
+
+// limpiar texto
+let texto = derivada.replace(/\*/g, "").replace(/\s+/g, "");
+
+// separar términos
+let terminos = texto.replace(/-/g, "+-").split("+").filter(t => t);
+
+// convertir a objetos con potencia
+let lista = terminos.map(t => {
+    let potencia = 0;
+    if (t.includes("x^")) {
+        potencia = parseInt(t.split("x^")[1]);
+    } else if (t.includes("x")) {
+        potencia = 1;
+    }
+    return { texto: t, pot: potencia };
+});
+
+// ordenar de mayor a menor
+lista.sort((a, b) => b.pot - a.pot);
+
+// reconstruir expresión
+let resultadoFinal = lista.map(t => t.texto).join(" + ");
+resultadoFinal = resultadoFinal.replace(/\+\-/g, "- ");
+resultadoFinal = resultadoFinal.replace(/\+\s*-/g, "- ");
+
+
+res.innerHTML = `<strong>Derivada:</strong> ${resultadoFinal}`;
+
+
+    }catch{
+        res.innerHTML = "Error en la función";
+    }
+}
+
+/* ===== ACTIVIDAD ===== */
+function guardarActividad(){
+    localStorage.setItem("actividad", actividad.value);
+    alert("Actividad guardada");
+}
+function borrarActividad(){
+    localStorage.removeItem("actividad");
+    actividad.value="";
+    alert("Actividad eliminada");
+}
+function mostrarActividadAlumno(){
+    const a = localStorage.getItem("actividad");
+    actividadAlumno.innerHTML = a
+        ? `<strong>Actividad:</strong><br>${a}`
+        : "No hay actividad asignada.";
+}
+
+/* ===== RESPUESTAS ===== */
+function enviarRespuesta(){
+    if(!nombreAlumno.value || !respuestaAlumno.value){
+        alert("Completa todos los campos");
+        return;
+    }
+    const r = JSON.parse(localStorage.getItem("respuestas")) || [];
+    r.push({nombre:nombreAlumno.value, resp:respuestaAlumno.value});
+    localStorage.setItem("respuestas", JSON.stringify(r));
+    alert("Respuesta enviada");
+    respuestaAlumno.value="";
+}
+function cargarResultados(){
+    const r = JSON.parse(localStorage.getItem("respuestas")) || [];
+    tablaResultados.innerHTML="";
+    r.forEach(x=>{
+        tablaResultados.innerHTML += `<tr><td>${x.nombre}</td><td>${x.resp}</td></tr>`;
+    });
+}
+function reiniciarRespuestas(){
+    localStorage.removeItem("respuestas");
+    cargarResultados();
+}
+
+/* ===== MAESTRO ===== */
+function validarCodigo(){
+    if(codigoMaestro.value==="soyCECyTEM"){
+        panelMaestro.style.display="block";
+        actividad.value = localStorage.getItem("actividad") || "";
+        cargarResultados();
+    }else{
+        alert("Código incorrecto");
+    }
+}
+</script>
+
+</body>
+</html>
